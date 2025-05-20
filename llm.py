@@ -48,7 +48,7 @@ class Gemini:
             )
         
         self.embedding_model = GoogleGenerativeAIEmbeddings(
-            model="models/embedding-001",  # Required field
+            model="models/embedding-001",  
             google_api_key=google_api
         )
 
@@ -88,25 +88,7 @@ class Gemini:
         self.doc_collection.insert_many(documents)
         print(f"Document '{filename or doc_id}' ingested successfully with {len(documents)} chunks.")
 
-    # def ingest_response(self, response_text, user_query=None, response_id=None, metadata=None):
-    #     if not response_id:
-    #         response_id = str(uuid4())
-    #     if metadata is None:
-    #         metadata = {}
-    #     # Generate embedding for the response
-    #     embedding = self.embedding_model.embed_query(response_text)
-    #     # Prepare document
-    #     document = {
-    #         "response_id": response_id,
-    #         "response_text": response_text,
-    #         "embedding": embedding,
-    #         "metadata": {
-    #             "user_query": user_query,
-    #             **metadata
-    #         }
-    #     }
-    #     self.chat_collection.insert_one(document)
-    #     print(f"Response saved with id {response_id}")
+
     def ingest_response(self, user_query, response_text):
         chat_entry = {
             "timestamp": datetime.utcnow(),
@@ -117,7 +99,7 @@ class Gemini:
         print("Chat saved to chat_history.")
 
     def hybrid_search(self, query, top_k=4):
-        # Step 1: Vector + keyword search on document_chunks
+    
         embedding = self.embedding_model.embed_query(query)
 
         text_pipeline = [
@@ -152,12 +134,11 @@ class Gemini:
             doc["chunk"] for doc in doc_results_text + doc_results_vec if "chunk" in doc
         ))
 
-        # Step 2: Get last 20 chat turns from chat_history_collection
         recent_chats = list(
             self.chat_history_collection.find()
             .sort("timestamp", -1)
             .limit(20)
-        )[::-1]  # reverse for chronological order
+        )[::-1]  
 
         chat_chunks = [
             f"User: {entry['user_query']}\nBot: {entry['response_text']}"
