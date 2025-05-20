@@ -1,0 +1,26 @@
+# Ignore Python cache and compiled files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Ignore virtual environments
+.venv/
+
+# Ignore environment variables
+.env
+
+# Ignore editor/project settings
+.vscode/
+.idea/
+
+# Ignore Gradio and local app artifacts
+.gradio/
+
+# Ignore logs or local script artifacts
+*.log
+*.bak
+*.tmp
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
