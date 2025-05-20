@@ -20,7 +20,6 @@ uri = os.getenv("MONGODB_URI")
 client = MongoClient(uri)
 db = client["RAG-cluster"]
 document_collection = db["document_chunks"]
-chat_collection = db["chat_responses"]
 chat_history = db["chat_history"]
 
 try:
@@ -53,7 +52,6 @@ class Gemini:
         )
 
         self.doc_collection = document_collection
-        self.chat_collection = chat_collection
         self.chat_history_collection = chat_history
     
 
@@ -98,10 +96,11 @@ class Gemini:
         self.chat_history_collection.insert_one(chat_entry)
         print("Chat saved to chat_history.")
 
-    def hybrid_search(self, query, top_k=4):
-    
+    def hybrid_search(self, query, top_k=3):
+        # Get embedding for vector search
         embedding = self.embedding_model.embed_query(query)
 
+        # === Document search ===
         text_pipeline = [
             {
                 "$search": {
@@ -134,15 +133,25 @@ class Gemini:
             doc["chunk"] for doc in doc_results_text + doc_results_vec if "chunk" in doc
         ))
 
-        recent_chats = list(
-            self.chat_history_collection.find()
-            .sort("timestamp", -1)
-            .limit(20)
-        )[::-1]  
+        # === Chat history keyword search ===
+        chat_pipeline = [
+        {
+            "$search": {
+                "index": "chat-history",  # Add this line to specify index name
+                "text": {
+                    "query": query,
+                    "path": ["user_query", "response_text"]
+                }
+            }
+        },
+        {"$limit": top_k}
+    ]
+
+        chat_results = list(self.chat_history_collection.aggregate(chat_pipeline))
 
         chat_chunks = [
             f"User: {entry['user_query']}\nBot: {entry['response_text']}"
-            for entry in recent_chats if "user_query" in entry and "response_text" in entry
+            for entry in chat_results if "user_query" in entry and "response_text" in entry
         ]
 
         return {

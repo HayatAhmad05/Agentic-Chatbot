@@ -61,7 +61,7 @@ def chatbot(state: State):
 
     # Inject system prompt
     from langchain_core.messages import SystemMessage
-    from llm import system_prompt  # import this from llm.py or move the string here
+    from llm import system_prompt  
 
     messages = [SystemMessage(content=system_prompt)] + state["messages"]
 
