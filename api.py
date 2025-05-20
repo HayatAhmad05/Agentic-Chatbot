@@ -1,9 +1,8 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Request
 from pydantic import BaseModel
 from Agent import stream_graph_updates
-from fastapi.responses import StreamingResponse
+from logging_config import RequestIDMiddleware, logger
 from dotenv import load_dotenv
-import os
 from llm import Gemini
 
 bot = Gemini()
@@ -16,12 +15,14 @@ class SearchRequest(BaseModel):
     query: str
 
 app = FastAPI()
+app.add_middleware(RequestIDMiddleware)
 
 @app.post("/chat/")
-async def chat(req: ChatRequest):   
-    
+async def chat(req: ChatRequest, request: Request):
+    logger = request.state.logger
+    logger.info(f"User query: {req.message}")
     reply = stream_graph_updates(req.message)
-    bot.ingest_response(req.message, reply)
+    logger.info(f"Bot response: {reply}")
     return {"reply": reply}
 
 

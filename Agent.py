@@ -27,7 +27,7 @@ bot = Gemini()
 system_prompt = """
 You are a smart assistant with access to two tools:
 
-- Use `rag_search` to retrieve past user-uploaded documents and previous conversation memory stored in the database.
+- Use `rag_search` to retrieve past user-uploaded documents and previous conversation memory stored in the database. This includes any queries related to the users personal information.
 - Use `TavilySearch` for real-time web information.
 ...
 """
