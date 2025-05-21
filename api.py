@@ -14,7 +14,13 @@ class ChatRequest(BaseModel):
 class SearchRequest(BaseModel):
     query: str
 
-app = FastAPI()
+app = FastAPI(
+    title="RAG Chatbot API",
+    description="Chatbot using Gemini, FastAPI, and Tavily.",
+    version="1.0.0",
+    docs_url="/docs",      
+    redoc_url="/redoc"      
+)
 app.add_middleware(RequestIDMiddleware)
 
 @app.post("/chat/")
