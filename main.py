@@ -11,10 +11,11 @@ API_URL = os.getenv("API_URL", "http://127.0.0.1:8000")
 
 
 
-def respond(message, chat_history):
-    
+def respond(user_email, message, chat_history):
+    payload = {"message": message, "user_id": user_email}
+
     try:
-        r = requests.post(f"{API_URL}/chat/", json={"message": message})
+        r = requests.post(f"{API_URL}/chat/", json=payload)
         
         if r.status_code == 200:
             
@@ -48,6 +49,7 @@ def upload_file(file):
 with gr.Blocks(title="Chatbot Demo") as demo:
 
     gr.Markdown("## NETSOL Chatbot")
+    email = gr.Textbox(label="Your email (used as user ID)")
     chatbox = gr.Chatbot()
     msg = gr.Textbox(placeholder="Type a message or search:")
     file_upload = gr.File(label="Upload a document", file_types=[".pdf", ".txt", ".docx"])
@@ -56,8 +58,8 @@ with gr.Blocks(title="Chatbot Demo") as demo:
     upload_status = gr.Markdown()
     file_upload.upload(upload_file, inputs=file_upload, outputs=upload_status)
     
-    msg.submit(respond, [msg, chatbox], [chatbox, msg])
-    send.click(respond, [msg, chatbox], [chatbox, msg])
+    msg.submit(respond, [email, msg, chatbox], [chatbox, msg])
+    send.click(respond, [email, msg, chatbox], [chatbox, msg])
     clear.click(fn=lambda: "", inputs=[], outputs=msg)
     
 

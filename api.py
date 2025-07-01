@@ -10,6 +10,7 @@ bot = Gemini()
 
 class ChatRequest(BaseModel):
     message: str
+    user_id: str
 
 class SearchRequest(BaseModel):
     query: str
@@ -29,6 +30,7 @@ async def chat(req: ChatRequest, request: Request):
     logger.info(f"User query: {req.message}")
     reply = stream_graph_updates(req.message)
     logger.info(f"Bot response: {reply}")
+    bot.ingest_response(req.message, reply, req.user_id)
     return {"reply": reply}
 
 
@@ -37,19 +39,20 @@ async def chat(req: ChatRequest, request: Request):
 
 @app.post("/upload/")
 async def upload_document(file: UploadFile = File(...)):
-    filename = file.filename.lower()
+    filename = file.filename
+    filename_lower = filename.lower()
     contents = await file.read()
     text = ""
 
     try:
-        if filename.endswith(".txt"):
+        if filename_lower.endswith(".txt"):
             text = contents.decode("utf-8", errors="ignore")
-        elif filename.endswith(".pdf"):
+        elif filename_lower.endswith(".pdf"):
             import io
             from PyPDF2 import PdfReader
             pdf = PdfReader(io.BytesIO(contents))
             text = "\n".join(page.extract_text() or "" for page in pdf.pages)
-        elif filename.endswith(".docx"):
+        elif filename_lower.endswith(".docx"):
             import io
             from docx import Document
             doc = Document(io.BytesIO(contents))
@@ -57,8 +60,9 @@ async def upload_document(file: UploadFile = File(...)):
         else:
             return {"status": "error", "message": "Unsupported file type."}
 
-        bot.ingest_document(text, doc_id=file.filename)
-        return {"status": "success", "message": f"{file.filename} uploaded and processed."}
+        # Use original filename, not lowercased
+        bot.ingest_document(text, doc_id=filename, filename=filename)
+        return {"status": "success", "message": f"{filename} uploaded and processed."}
     except Exception as e:
-        print(e)
-        return {"status": "error", "message": "Error processing file."}
+        print(f"Upload error: {e}")
+        return {"status": "error", "message": f"Error processing file: {str(e)}"}

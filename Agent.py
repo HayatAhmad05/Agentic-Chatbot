@@ -14,6 +14,9 @@ from langfuse import Langfuse
 from llm import Gemini
 from Tools.RagTool import RAGTool
 
+from langgraph.graph import StateGraph, START
+from langgraph.graph.message import add_messages
+
 load_dotenv()
 
 langfuse = Langfuse(
@@ -27,9 +30,19 @@ bot = Gemini()
 system_prompt = """
 You are a smart assistant with access to two tools:
 
-- Use `rag_search` to retrieve past user-uploaded documents and previous conversation memory stored in the database. This includes any queries related to the users personal information.
-- Use `TavilySearch` for real-time web information.
-...
+1. `rag_search`: Use this tool to search through uploaded documents and previous conversations. 
+   - Use for questions about uploaded files, documents, or personal information
+   - Use for questions that reference previous conversations
+   - This tool searches your internal knowledge base
+
+2. `TavilySearch`: Use this tool for real-time web information and current events.
+   - Use for questions about current events, news, or information not in your documents
+   - Use for general knowledge questions that require up-to-date information
+
+Always try rag_search FIRST if the user is asking about uploaded documents or previous conversations.
+Only use TavilySearch if rag_search doesn't find relevant information and you need external data.
+
+When you find relevant information from rag_search, use it to answer the user's question directly.
 """
 
 
@@ -68,6 +81,7 @@ def chatbot(state: State):
     response = bot_with_tools.invoke(messages)
 
     print(f"Tool calls: {getattr(response, 'tool_calls', None)}")
+    print(f"Response content: {getattr(response, 'content', 'No content')}")
     return {"messages": [response]}
 
 
@@ -95,20 +109,34 @@ graph = graph_builder.compile()
 
 
 def stream_graph_updates(user_input: str):
-
     chunks = []
+    tool_results = []
+    print(f"Starting stream for: {user_input}")
+    
     for event in graph.stream({"messages": [{"role": "user", "content": user_input}]}):
-        for value in event.values():
-            msg = value["messages"][-1] #im fucking retarded
-            if hasattr(msg, "content"):
-                content = msg.content
-            elif isinstance(msg, dict):
-                content = msg.get("content", "")
-            else:
-                content = str(msg)
-            chunks.append(content)
-    SearchResponse = "".join(chunks)
-    content = remove_braced_text(SearchResponse)
+        print(f"Event: {list(event.keys())}")
+        for node_name, value in event.items():
+            if node_name == "tools":
+                # Skip tool output, we only want the final chatbot response
+                tool_results.append(value["messages"][-1].content)
+                print(f"Tool executed: {tool_results[-1][:100]}...")
+            elif node_name == "chatbot":
+                msg = value["messages"][-1]
+                if hasattr(msg, "content") and msg.content:
+                    content = msg.content
+                    # Only add content that's not a tool call (actual response)
+                    if content and not hasattr(msg, 'tool_calls') or (hasattr(msg, 'tool_calls') and not msg.tool_calls):
+                        chunks.append(content)
+                        print(f"Added final response: {content[:100]}...")
+    
+    if chunks:
+        final_response = "".join(chunks)
+    else:
+        # Fallback if no final response was captured
+        final_response = "I apologize, but I couldn't process your request properly."
+    
+    content = remove_braced_text(final_response)
+    print(f"Final response: {content[:200]}...")
     return content
     
 
